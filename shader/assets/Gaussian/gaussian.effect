@@ -1,0 +1,125 @@
+// Copyright (c) 2017-2020 Xiamen Yaji Software Co., Ltd.
+CCEffect %{
+  techniques:
+  - passes:
+    - vert: sprite-vs:vert
+      frag: sprite-fs:frag
+      depthStencilState:
+        depthTest: false
+        depthWrite: false
+      blendState:
+        targets:
+        - blend: true
+          blendSrc: src_alpha
+          blendDst: one_minus_src_alpha
+          blendDstAlpha: one_minus_src_alpha
+      rasterizerState:
+        cullMode: none
+      properties:
+        alphaThreshold: { value: 0.5 }
+        size: { value: [500.0, 500.0], editor: { tooltip: '节点尺寸' } }
+
+}%
+
+CCProgram sprite-vs %{
+  precision highp float;
+  #include <cc-global>
+  #if USE_LOCAL
+    #include <cc-local>
+  #endif
+  #if SAMPLE_FROM_RT
+    #include <common>
+  #endif
+  in vec3 a_position;
+  in vec2 a_texCoord;
+  in vec4 a_color;
+
+  out vec4 color;
+  out vec2 uv0;
+
+  vec4 vert () {
+    vec4 pos = vec4(a_position, 1);
+
+    #if USE_LOCAL
+      pos = cc_matWorld * pos;
+    #endif
+
+    #if USE_PIXEL_ALIGNMENT
+      pos = cc_matView * pos;
+      pos.xyz = floor(pos.xyz);
+      pos = cc_matProj * pos;
+    #else
+      pos = cc_matViewProj * pos;
+    #endif
+
+    uv0 = a_texCoord;
+    #if SAMPLE_FROM_RT
+      CC_HANDLE_RT_SAMPLE_FLIP(uv0);
+    #endif
+    color = a_color;
+
+    return pos;
+  }
+}%
+
+CCProgram sprite-fs %{
+  precision highp float;
+  #include <embedded-alpha>
+  #include <alpha-test>
+
+  in vec4 color;
+
+  uniform Properties {
+    vec2 size;
+    
+  };
+
+  const float RADIUS = 20.0;
+  const float PI = 3.141592654;
+  const float MY_E = 2.718281828;
+
+  #if USE_TEXTURE
+    in vec2 uv0;
+    #pragma builtin(local)
+    layout(set = 2, binding = 10) uniform sampler2D cc_spriteTexture;
+  #endif
+
+  vec4 frag () {
+    vec4 o = vec4(1, 1, 1, 1);
+
+    #if USE_TEXTURE
+      o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0);
+      #if IS_GRAY
+        float gray  = 0.2126 * o.r + 0.7152 * o.g + 0.0722 * o.b;
+        o.r = o.g = o.b = gray;
+      #endif
+    #endif
+
+    float sumWeight = 0.;
+    vec2 onePixelSize = vec2(1, 1) / size;
+    // // 卷积
+    for(float r = -RADIUS; r <= RADIUS; r++) {
+        for(float c = -RADIUS; c <= RADIUS; c++) {
+            vec2 targetUv = uv0 + vec2(r * onePixelSize.x, c * onePixelSize.y);
+            if(targetUv.x < 0. || targetUv.x > 1. || targetUv.y < 0. || targetUv.y > 1.) {
+                continue;
+            }
+            // 简略的高斯filter
+            // float weight = (RADIUS - abs(r)) * (RADIUS - abs(c));
+
+            float deviation = 1.0;
+            float n = -(r * r + c * c) / (2. * deviation * deviation);
+            float weight = pow((1. / (deviation * deviation * 2. * PI)), pow(MY_E, n));
+
+            // float weight = getWeight(r, c);
+            o += texture(cc_spriteTexture, targetUv) * weight;
+            sumWeight += weight;
+        }
+    }
+    o /= sumWeight;
+
+    o *= color;
+    ALPHA_TEST(o);
+    return o;
+  }
+}%
