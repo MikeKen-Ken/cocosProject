@@ -19,6 +19,7 @@ CCEffect %{
         alphaThreshold: { value: 0.5 }
         uMouse:      { value: [0.5,0.5], target: params.xy  }
         resolution:      { value: [1.0,1.0], target: params.zw  }
+
 }%
 
 CCProgram sprite-vs %{
@@ -67,7 +68,8 @@ CCProgram sprite-fs %{
   #include <embedded-alpha>
   #include <alpha-test>
 
-   uniform Constants {
+
+  uniform Constants {
     vec4 params;
   };
 
@@ -79,11 +81,27 @@ CCProgram sprite-fs %{
     layout(set = 2, binding = 10) uniform sampler2D cc_spriteTexture;
   #endif
 
+  float circle(vec2 uv, vec2 disc_center, float disc_radius, float border_size) {
+     uv -= disc_center;
+     vec2 resolution = params.zw;
+     uv*=resolution;
+     float dist = sqrt(dot(uv, uv));
+     return smoothstep(disc_radius+border_size, disc_radius-border_size, dist);
+   }
+
   vec4 frag () {
     vec4 o = vec4(1, 1, 1, 1);
 
     #if USE_TEXTURE
-      o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0);
+      // o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0);
+      vec2 uMouse = params.xy;
+      vec2 newUV = uv0;
+      float c = circle(uv0, uMouse, 0.0, 0.2);
+      float r = CCSampleWithAlphaSeparated(cc_spriteTexture, newUV.xy += c * (0.1 * .5)).x;
+      float g = CCSampleWithAlphaSeparated(cc_spriteTexture, newUV.xy += c * (0.1 * .525)).y;
+      float b = CCSampleWithAlphaSeparated(cc_spriteTexture, newUV.xy += c * (0.1 * .55)).z;
+      o = vec4(r, g, b, 1.);
+
       #if IS_GRAY
         float gray  = 0.2126 * o.r + 0.7152 * o.g + 0.0722 * o.b;
         o.r = o.g = o.b = gray;

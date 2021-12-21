@@ -1,44 +1,62 @@
-
-import { _decorator, Component, Node } from 'cc';
+import {
+    _decorator,
+    Component,
+    Sprite,
+    systemEvent,
+    EventMouse,
+    v4,
+    UITransform,
+    v2,
+    v3,
+    Vec3,
+    SystemEvent
+} from 'cc';
 const { ccclass, property } = _decorator;
 
-/**
- * Predefined variables
- * Name = Hover
- * DateTime = Tue Dec 14 2021 17:07:52 GMT+0800 (中国标准时间)
- * Author = 庐山烟雨潮
- * FileBasename = hover.ts
- * FileBasenameNoExtension = hover
- * URL = db://assets/hover/hover.ts
- * ManualUrl = https://docs.cocos.com/creator/3.3/manual/en/
- *
- */
- 
-@ccclass('Hover')
-export class Hover extends Component {
-    // [1]
-    // dummy = '';
+@ccclass('HoverSpriteTest')
+export class HoverSpriteTest extends Component {
+    @property(Sprite)
+    sprite: Sprite = null!;
 
-    // [2]
-    // @property
-    // serializableDummy = 0;
+    params = v4();
 
-    start () {
-        // [3]
+    location = v2();
+
+    worldLocation = v3();
+
+    uiTransform: UITransform = null!;
+
+    start() {
+        this.uiTransform = this.sprite.getComponent(UITransform)!;
+        systemEvent.on(
+            SystemEvent.EventType.MOUSE_MOVE,
+            this.onMouseMove,
+            this
+        );
+        this.params.z = 1;
+        this.params.w = this.uiTransform.height / this.uiTransform.width;
     }
 
-    // update (deltaTime: number) {
-    //     // [4]
-    // }
-}
+    onMouseMove(event: EventMouse) {
+        event.getUILocation(this.location);
+        Vec3.set(this.worldLocation, this.location.x, this.location.y, 0);
+        this.uiTransform.convertToNodeSpaceAR(
+            this.worldLocation,
+            this.worldLocation
+        );
+        this.params.x =
+            this.worldLocation.x / this.uiTransform.width +
+            this.uiTransform.anchorX;
 
-/**
- * [1] Class member could be defined like this.
- * [2] Use `property` decorator if your want the member to be serializable.
- * [3] Your initialization goes here.
- * [4] Your update function goes here.
- *
- * Learn more about scripting: https://docs.cocos.com/creator/3.3/manual/en/scripting/
- * Learn more about CCClass: https://docs.cocos.com/creator/3.3/manual/en/scripting/ccclass.html
- * Learn more about life-cycle callbacks: https://docs.cocos.com/creator/3.3/manual/en/scripting/life-cycle-callbacks.html
- */
+        this.params.y =
+            1 -
+            (this.worldLocation.y / this.uiTransform.height +
+                this.uiTransform.anchorX);
+
+        this.sprite.getMaterial(0)?.setProperty('params', this.params);
+    }
+
+    onDestroy() {
+        systemEvent.targetOff(this);
+    }
+}

@@ -89,34 +89,33 @@ CCProgram sprite-fs %{
 
     #if USE_TEXTURE
       o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0);
+      float sumWeight = 0.;
+      vec2 onePixelSize = vec2(1, 1) / size;
+      // // 卷积
+      for(float r = -RADIUS; r <= RADIUS; r++) {
+          for(float c = -RADIUS; c <= RADIUS; c++) {
+              vec2 targetUv = uv0 + vec2(r * onePixelSize.x, c * onePixelSize.y);
+              if(targetUv.x < 0. || targetUv.x > 1. || targetUv.y < 0. || targetUv.y > 1.) {
+                continue;
+              }
+            // 简略的高斯filter
+            // float weight = (RADIUS - abs(r)) * (RADIUS - abs(c));
+            // 使用高斯等式的filter
+              float deviation = 1.0;
+              float n = -(r * r + c * c) / (2. * deviation * deviation);
+              float weight = pow((1. / (deviation * deviation * 2. * PI)), pow(MY_E, n));
+
+              // float weight = getWeight(r, c);
+              o += texture(cc_spriteTexture, targetUv) * weight;
+              sumWeight += weight;
+          }
+      }
+    o /= sumWeight;
       #if IS_GRAY
         float gray  = 0.2126 * o.r + 0.7152 * o.g + 0.0722 * o.b;
         o.r = o.g = o.b = gray;
       #endif
     #endif
-
-    float sumWeight = 0.;
-    vec2 onePixelSize = vec2(1, 1) / size;
-    // // 卷积
-    for(float r = -RADIUS; r <= RADIUS; r++) {
-        for(float c = -RADIUS; c <= RADIUS; c++) {
-            vec2 targetUv = uv0 + vec2(r * onePixelSize.x, c * onePixelSize.y);
-            if(targetUv.x < 0. || targetUv.x > 1. || targetUv.y < 0. || targetUv.y > 1.) {
-                continue;
-            }
-            // 简略的高斯filter
-            // float weight = (RADIUS - abs(r)) * (RADIUS - abs(c));
-            // 使用高斯等式的filter
-            float deviation = 1.0;
-            float n = -(r * r + c * c) / (2. * deviation * deviation);
-            float weight = pow((1. / (deviation * deviation * 2. * PI)), pow(MY_E, n));
-
-            // float weight = getWeight(r, c);
-            o += texture(cc_spriteTexture, targetUv) * weight;
-            sumWeight += weight;
-        }
-    }
-    o /= sumWeight;
 
     o *= color;
     ALPHA_TEST(o);

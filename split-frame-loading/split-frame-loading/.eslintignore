@@ -1,0 +1,8 @@
+node_modules/**/*
+dist/**/*
+library/**/*
+temp/**/*
+local/**/*
+packages/**/*
+doc/**/*
+creator.d.ts

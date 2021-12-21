@@ -1,12 +1,12 @@
 {
-  "name": "shader",
+  "name": "split-frame-loading",
   "type": "3d",
-  "uuid": "6cf7425a-8133-4cd4-be69-044d820314b3",
-  "version": "3.3.2",
+  "uuid": "86863386-fa6b-4e79-8003-c0b05d67df02",
+  "version": "3.4.0",
   "creator": {
-    "version": "3.3.2"
-  } ,
-   "dependencies": {
+    "version": "3.4.0"
+  },
+  "dependencies": {
     "@typescript-eslint/eslint-plugin": "^2.24.0",
     "@typescript-eslint/parser": "^2.24.0",
     "eslint": "^6.8.0",
