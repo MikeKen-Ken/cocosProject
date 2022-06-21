@@ -1,12 +1,8 @@
 {
-  "name": "shader",
-  "type": "3d",
-  "uuid": "6cf7425a-8133-4cd4-be69-044d820314b3",
-  "version": "3.3.2",
   "creator": {
-    "version": "3.3.2"
-  } ,
-   "dependencies": {
+    "version": "3.4.0"
+  },
+  "dependencies": {
     "@typescript-eslint/eslint-plugin": "^2.24.0",
     "@typescript-eslint/parser": "^2.24.0",
     "eslint": "^6.8.0",
@@ -14,5 +10,9 @@
     "eslint-plugin-prettier": "^3.1.2",
     "prettier": "^1.19.1",
     "typedoc": "^0.18.0"
-  }
+  },
+  "name": "shader",
+  "type": "3d",
+  "uuid": "6cf7425a-8133-4cd4-be69-044d820314b3",
+  "version": "3.4.0"
 }
