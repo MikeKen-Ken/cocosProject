@@ -1,0 +1,153 @@
+// Effect Syntax Guide: https://github.com/cocos-creator/docs-3d/blob/master/zh/material-system/effect-syntax.md
+
+CCEffect %{
+  techniques:
+  - name: view_outLine
+    passes:
+    - vert: line-vs:vert 
+      frag: line-fs:frag
+      rasterizerState:
+        cullMode: back
+      properties:
+        lineWidth: { value: 10 }
+        lineColor: { value: [1, 1, 1, 1], parent: OPEN_OUT_LINE, editor: { type: color } }
+        mainColor: { value: [1, 1, 1, 1], editor: { type: color } }
+  - name: normal_outLine
+    passes:
+    - switch: USE_OUT_LINE
+      vert: normalLine-vs:vert
+      frag: general-fs:frag
+      rasterizerState:
+        cullMode: front
+      properties:
+        bacisDepth: {value: -1}
+        lineWidth: {value: 10}
+        lineColor: {value: [2,2,2,2],target: mainColor, editor: { type: color } }
+    - vert: general-vs:vert 
+      frag: general-fs:frag
+      properties: 
+        mainColor:      { value: [1, 1, 1, 1], editor: { type: color } }
+}%
+
+CCProgram line-vs %{
+  precision highp float;
+  #include <cc-global>
+  #include <cc-local-batch>
+  #include <input-standard>
+
+  in vec4 a_color;
+
+  out vec2 v_uv;
+  out vec3 v_position;
+  out float v_factor;
+
+  uniform LineInfo{
+    float lineWidth;
+  };
+
+  vec4 vert () {
+    StandardVertInput In;
+    CCVertInput(In);
+
+    mat4 matWorld, matWorldIT;
+    CCGetWorldMatrixFull(matWorld, matWorldIT);
+
+    vec4 pos = matWorld * In.position;
+
+    v_uv = a_texCoord;
+    v_position = pos.xyz;
+
+    vec3 viewDir = normalize(cc_cameraPos.xyz - v_position);
+    v_factor = 1.0 - step(lineWidth / 100.0 ,dot(normalize(In.normal),viewDir));
+
+    vec4 outPos = cc_matProj * (cc_matView * matWorld) * In.position;
+
+    return outPos;
+  }
+}%
+
+CCProgram line-fs %{
+  precision highp float;
+  #include <output>
+  #include <cc-fog-fs>
+
+  in float v_factor;
+
+  #if OPEN_OUT_LINE
+  uniform lineColorInfo{
+    vec4 lineColor;
+  };
+  #endif
+
+  uniform Constant {
+    vec4 mainColor;
+  };
+
+  vec4 frag () {
+    vec4 color = mainColor;
+
+    #if OPEN_OUT_LINE
+    color = mix(mainColor,lineColor,v_factor);
+    #endif
+     
+    return CCFragOutput(color);
+  }
+}%
+
+CCProgram normalLine-vs %{
+  precision highp float;
+  #include <cc-global>
+  #include <cc-local-batch>
+  #include <input-standard>
+
+  in vec4 a_color;
+
+  out vec2 v_uv;
+  out vec3 v_position;
+  out float v_factor;
+
+  uniform LineInfo{
+    float bacisDepth;
+    float lineWidth;
+  };
+
+  vec4 vert () {
+    StandardVertInput In;
+    CCVertInput(In);
+
+    mat4 matWorld, matWorldIT;
+    CCGetWorldMatrixFull(matWorld, matWorldIT);
+
+    vec4 pos = matWorld * In.position;
+
+    v_uv = a_texCoord;
+    v_position = pos.xyz;
+
+    In.position.xyz += normalize(In.normal) * lineWidth * 0.001;
+    vec4 outPos = cc_matProj * (cc_matView * matWorld) * In.position;
+    outPos.z -= bacisDepth * 0.002;
+
+    return outPos;
+  }
+}%
+
+
+CCProgram general-fs %{
+  precision highp float;
+  #include <output>
+  #include <cc-fog-fs>
+
+  in vec2 v_uv;
+  in vec3 v_position;
+
+  uniform Constant {
+    vec4 mainColor;
+  };
+
+  vec4 frag () {
+    vec4 col = mainColor;
+    
+    return CCFragOutput(col);
+  }
+}%
+

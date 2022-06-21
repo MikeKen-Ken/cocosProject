@@ -1,0 +1,214 @@
+// Effect Syntax Guide: https://github.com/cocos-creator/docs-3d/blob/master/zh/material-system/effect-syntax.md
+CCEffect %{
+  techniques:
+  - name: normal
+    passes:
+    - vert: general-vs:vert # builtin header
+      frag: normal-fs:frag
+  - name: blinnPhong
+    passes:
+    # 第一个pass渲染主方向光
+    - vert: general-vs:vert # builtin header
+      frag: blinnPhong-fs:frag
+      properties: &lightProp
+        mainTexture: {value: grey, parent: USE_TEXTURE}
+        mainColor: {value: [1,1,1,1], editor: { displayName: Albedo, type: color}}
+        gloss: {value: 0.5, editor: { range: [0, 1.0], step: 0.001, slide: true}}
+    # 第二个pass渲染其余前向光源
+    - vert: general-vs:vert 
+      frag: blinnPhongForward-fs:frag
+      propertyIndex: 0
+      # 第二个pass需标记为forward-add，否则拿不到其他前向光源
+      phase: forward-add
+      properties: *lightProp
+      # 更改深度测试，深度相同时才渲染其余光源，确保是渲染在物体表面片元
+      depthStencilState:
+        depthFunc: equal
+        depthTest: true
+        depthWrite: false
+      # 开启blend，叠加多光源渲染结果，简单叠加，不做透明处理
+      blendState: 
+        targets:
+        - blend: true
+          blendSrc: one
+          blendDst: one
+          blendSrcAlpha: zero
+          blendDstAlpha: one
+}%
+
+//法线着色
+CCProgram normal-fs %{
+precision highp float;
+  #include <output>
+  #include <cc-fog-fs>
+
+  in vec2 v_uv;
+  in vec3 v_normal;
+  in vec3 v_position;
+
+  vec4 frag(){
+    //法线加上基础色
+    vec3 baseColor = -normalize(v_normal) + vec3(0.6,0.6,0.6);
+    vec4 col = vec4(baseColor,1.0);
+    return col;
+  }
+
+}%
+
+//blin-phong：漫反射+镜面反射（高光）+环境光
+
+//方向光
+CCProgram blinnPhong-fs %{
+  precision highp float;
+  #include <output>
+
+  in vec2 v_uv;
+  in vec3 v_position;
+  in vec3 v_normal;
+  in vec4 v_color;
+
+  #if USE_TEXTURE
+  uniform sampler2D mainTexture;
+  #endif
+
+  uniform Constant {
+    vec4 mainColor; 
+    float gloss; //光滑度，控制高光范围 
+  };
+
+  //单光源，主方向光
+  vec4 frag () {
+
+    //漫反射光强
+    float mainIntensity = cc_mainLitColor.a;
+    //环境光光强
+    float ambientIntensity = cc_ambientSky.a;
+    //高光指数(光滑度)
+    float p = 50.0 + (1.0 - gloss) * 300.0;
+
+    //在此处漫反射系数没有硬性的公式，自行模拟即可
+    #if USE_TEXTURE
+    vec3 kd = mix(cc_mainLitColor.rgb , texture(mainTexture,v_uv).rgb,0.8); //漫反射系数（纹理色+光源色）
+    #else
+    vec3 kd = mix(cc_mainLitColor.rgb , mainColor.rgb,0.8); //漫反射系数（物体本色+光源色）
+    #endif
+
+    vec3 n = v_normal; //片元法线 
+    vec3 l = -normalize(cc_mainLitDir.rgb); //入射光方向取反
+    vec3 v = cc_cameraPos.rgb - v_position; //视角方向
+
+    //漫反射(物体本色) 漫反射系数 * 光强（削弱后）* cos(法线与入射光的夹角)。
+    vec3 ks = cc_mainLitColor.rgb; //镜面反射系数
+    float Id = mainIntensity; //主光源光强，方向光不做削弱处理
+    vec3 diffuseColor = kd * Id * max(0.0, dot(n,l));  //取0做最小值，不渲染处在光照反面的片元
+
+    //反射高亮（反射进人眼的高亮） 镜面反射系数 * 光强（削弱后）* cos(法线与半程向量的夹角)。
+
+    //blinn-phong光照模型与phong光照模型的区别就在此处：
+    //phong光照模型需要求出，反射光（不是入射光）与视线的夹角的余弦值，计算相对麻烦；
+    //blinn-phong光照模型引入了半程向量（入射光反向量+视线向量），只需要求出 半程向量与法线的夹角余弦即可。
+    vec3 h = normalize(v + l); //半程向量
+    vec3 specularColor = ks * Id * pow(max(0.0, dot(n,h)), p); //此处的指数p，旨在控制反射高光的范围
+    
+    //环境光
+    vec3 ka = cc_ambientSky.rgb; //环境光色
+    float Ia = ambientIntensity; //环境光光强
+    vec3 ambientColor = ka * Ia;
+
+    vec4 col = vec4(diffuseColor + specularColor + ambientColor, 1.0);
+    
+    return CCFragOutput(col);
+  }
+}%
+
+// 其他光源（球面光、聚光）
+CCProgram blinnPhongForward-fs %{
+  precision highp float;
+  #include <output>
+  #include <lighting>
+
+  in vec2 v_uv;
+  in vec3 v_position;
+  in vec3 v_normal;
+  in vec4 v_color;
+
+  #if USE_TEXTURE
+  uniform sampler2D mainTexture;
+  #endif
+
+  uniform Constant {
+    vec4 mainColor; 
+    float gloss; //光滑度，控制高光范围 
+  };
+
+  //其他前向光源，最多16个光源
+  vec4 frag () {
+    //输出颜色
+    vec3 finalColor;
+
+    //前向渲染管线一次pass只会记录一个有效光源，如有多个有效光源就会有多个pass；前提是该pass标记为属于forward-add管线阶段
+    //想要多个光源叠加就需要配置blend状态，让多次pass的片元输出叠加，不然只能看到一个光照效果。
+    //注：pass标记为forward-add时，只有物体被光源有效照射的时候，才会渲染该pass；如果只被方向光照射，是不会渲染该pass的，
+    //因此，需要将方向光和其他前向光（球面光、聚光）分开处理，即两个Pass。
+
+    //循环终止条件，只能和常量或uniform比较
+    for(int i = 0; i < LIGHTS_PER_PASS; i++){
+
+      vec4 lightPos = cc_lightPos[i];
+      vec4 lightDir = cc_lightDir[i];
+      vec4 lightColor = cc_lightColor[i];
+      vec4 lightSizeRangeAngle = cc_lightSizeRangeAngle[i];
+
+      vec3 litDistVec = v_position - lightPos.xyz;
+      float litDistSqrt = dot(litDistVec, litDistVec);
+      float litRadiusSqr = lightSizeRangeAngle.x * lightSizeRangeAngle.x;
+      float litRangeSqr = lightSizeRangeAngle.y * lightSizeRangeAngle.y;
+      
+      // blin-phong光照模型：漫反射 + 镜面反射 + 环境光
+      vec3 n = v_normal; //片元法线 
+      vec3 l = -normalize(litDistVec); //入射光方向取反
+      vec3 v = cc_cameraPos.xyz - v_position; //视角方向
+
+      #if USE_TEXTURE
+      vec3 kd = lightColor.rgb * texture(mainTexture,v_uv).rgb; //漫反射系数（纹理色+光源色）
+      #else
+      vec3 kd = lightColor.rgb * mainColor.rgb; //漫反射系数（物体本色+光源色）
+      #endif
+
+      //光源光强,光强随距离削减，不受光照范围影响
+      float mainIntensity = lightColor.a * litRadiusSqr / max(litRadiusSqr, litDistSqrt);
+
+      //在光照照范围内进一步削减，在光照范围内进行 0 ~ 1 平滑处理。
+      //此削减系数是在光强经过距离削减以后基础上使用，直接使用的话，在远距离上平滑曲线变化过快。
+      float attRangeSqrInv = 1.0 / max(lightSizeRangeAngle.y, 0.01);
+      attRangeSqrInv *= attRangeSqrInv;
+      float att = GetDistAtt(litDistSqrt, attRangeSqrInv);
+
+      //聚光，额外处理照明角度,角度外的不进行光照
+      if (lightPos.w > 0.0) {
+        float cosInner = dot(lightDir.xyz, normalize(litDistVec));
+        float cosOuter = lightSizeRangeAngle.z;
+        float litAngleScale = 1.0 / max(0.001, cosInner - cosOuter);
+        float litAngleOffset = -cosOuter * litAngleScale;
+        att *= GetAngleAtt(normalize(litDistVec), lightDir.xyz, litAngleScale, litAngleOffset);
+      }
+
+      float illum = mainIntensity * att; //实际光强
+      //漫反射(物体本色)
+
+      vec3 diffuseColor = kd * illum * max(0.0, dot(n,l)); 
+
+      //镜面反射光（反射进人眼的高亮）
+      vec3 ks = lightColor.rgb; //镜面反射系数
+      vec3 h = normalize(v + l); //半程向量
+      float p = 50.0 + (1.0 - gloss) * 300.0;//高光指数(光滑度)
+
+      vec3 specularColor = ks * illum * pow(max(0.0, dot(n,h)), p);
+
+      //环境光已经方向光pass处理，此处不叠加    
+      finalColor += diffuseColor + specularColor;
+    }
+
+    return vec4(finalColor,1.0);
+  }
+}%
