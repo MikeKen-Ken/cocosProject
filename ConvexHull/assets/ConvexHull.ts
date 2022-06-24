@@ -52,7 +52,7 @@ export class ConvexHull extends Component {
   showConvexHull() {
     this.isShowConvex = true;
     this.graphics.strokeColor = Color.RED;
-    const convexArray = this.convexHull(this.pointArray);
+    const convexArray = this.grahamScanConvexHullAlgorithms(this.pointArray);
     convexArray.map((p, i) => {
       this.graphics.moveTo(p.x, p.y);
       const nextIndex = i + 1 < convexArray.length ? i + 1 : 0;
@@ -61,33 +61,42 @@ export class ConvexHull extends Component {
     this.graphics.stroke();
   }
 
-  convexHull(points: Vec2[]): Vec2[] {
-    points.sort(function (a, b) {
-      return a.x != b.x ? a.x - b.x : a.y - b.y;
+  //graham Scan Algorithms to get convex hull
+  grahamScanConvexHullAlgorithms(points: Vec2[]) {
+    let convexHull = [];
+    let minPoint = points[0];
+    for (let i = 1; i < points.length; i++) {
+      if (points[i].y < minPoint.y) {
+        minPoint = points[i];
+      }
+    }
+    points.splice(points.indexOf(minPoint), 1);
+    points.sort((a, b) => {
+      return (
+        (b.x - a.x) * (minPoint.y - a.y) - (b.y - a.y) * (minPoint.x - a.x)
+      );
     });
-    const n = points.length;
-    const hull = [];
-    for (let i = 0; i < 2 * n; i++) {
-      const j = i < n ? i : 2 * n - 1 - i;
+    convexHull.push(minPoint);
+    convexHull.push(points[0]);
+    convexHull.push(points[1]);
+    for (let i = 2; i < points.length; i++) {
       while (
-        hull.length >= 2 &&
-        this.removeMiddle(
-          hull[hull.length - 2],
-          hull[hull.length - 1],
-          points[j]
+        convexHull.length >= 3 &&
+        this.isLeft(
+          convexHull[convexHull.length - 2],
+          convexHull[convexHull.length - 1],
+          points[i]
         )
       )
-        hull.pop();
-      hull.push(points[j]);
+        convexHull.pop();
+      convexHull.push(points[i]);
     }
-    hull.pop();
-    return hull;
+    return convexHull;
   }
 
-  removeMiddle(a: Vec2, b: Vec2, c: Vec2): boolean {
+  isLeft(a: Vec2, b: Vec2, c: Vec2): boolean {
     const cross = (a.x - b.x) * (c.y - b.y) - (a.y - b.y) * (c.x - b.x);
-    const dot = (a.x - b.x) * (c.x - b.x) + (a.y - b.y) * (c.y - b.y);
-    return cross < 0 || (cross == 0 && dot <= 0);
+    return cross < 0;
   }
 
   checkExplain() {

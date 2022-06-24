@@ -1,0 +1,16 @@
+{
+  "options": {
+    "web-desktop": {
+      "configID": "b384fe",
+      "services": []
+    },
+    "web-mobile": {
+      "configID": "b384fe",
+      "services": []
+    }
+  },
+  "builder-options": {
+    "configID": "b384fe",
+    "services": []
+  }
+}

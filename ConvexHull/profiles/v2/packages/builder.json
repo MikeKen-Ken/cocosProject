@@ -1,5 +1,58 @@
 {
   "log": {
     "level": 4
+  },
+  "common": {
+    "outputName": "web-mobile",
+    "mainBundleCompressionType": "merge_dep",
+    "platform": "web-mobile"
+  },
+  "BuildTaskManager": {
+    "taskMap": {
+      "1656040176582": {
+        "id": "1656040176582",
+        "progress": 1,
+        "state": "success",
+        "message": "2022-6-24 11:38 Build success in 5777 ms!",
+        "options": {
+          "name": "ConvexHull",
+          "platform": "web-mobile",
+          "buildPath": "project://build",
+          "debug": false,
+          "md5Cache": false,
+          "sourceMaps": false,
+          "replaceSplashScreen": false,
+          "mainBundleCompressionType": "merge_dep",
+          "mainBundleIsRemote": false,
+          "mergeStartScene": false,
+          "experimentalEraseModules": false,
+          "compressTexture": true,
+          "packAutoAtlas": true,
+          "startScene": "1eab8375-9ce3-42e2-a897-711486d78cc0",
+          "scenes": [
+            {
+              "url": "db://assets/scene.scene",
+              "uuid": "1eab8375-9ce3-42e2-a897-711486d78cc0",
+              "inBundle": false
+            }
+          ],
+          "outputName": "web-mobile",
+          "packages": {
+            "web-mobile": {
+              "orientation": "auto",
+              "polyfills": {
+                "asyncFunctions": true
+              }
+            },
+            "cocos-service": {
+              "configID": "b384fe",
+              "services": []
+            }
+          }
+        },
+        "time": "2022-6-24 11:38",
+        "dirty": false
+      }
+    }
   }
 }
