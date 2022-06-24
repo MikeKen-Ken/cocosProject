@@ -51,7 +51,62 @@
         },
         "time": "2022-6-19 18:46",
         "dirty": false
+      },
+      "1655991526497": {
+        "id": "1655991526497",
+        "progress": 1,
+        "state": "success",
+        "message": "2022-6-23 21:45 Build success in 4316 ms!",
+        "options": {
+          "name": "shader",
+          "platform": "web-mobile",
+          "buildPath": "project://build",
+          "debug": false,
+          "md5Cache": false,
+          "sourceMaps": false,
+          "replaceSplashScreen": false,
+          "mainBundleCompressionType": "merge_dep",
+          "mainBundleIsRemote": false,
+          "mergeStartScene": false,
+          "experimentalEraseModules": false,
+          "compressTexture": true,
+          "packAutoAtlas": true,
+          "startScene": "fe9e2ce2-c9f4-4ede-8f4b-2438c8e369c6",
+          "scenes": [
+            {
+              "url": "db://assets/3dscene.scene",
+              "uuid": "cb7151b9-3964-40c9-9ffe-cfce7702b4d4",
+              "inBundle": false
+            },
+            {
+              "url": "db://assets/mian.scene",
+              "uuid": "fe9e2ce2-c9f4-4ede-8f4b-2438c8e369c6",
+              "inBundle": false
+            }
+          ],
+          "outputName": "web-mobile",
+          "packages": {
+            "web-mobile": {
+              "orientation": "auto",
+              "polyfills": {
+                "asyncFunctions": true
+              }
+            },
+            "cocos-service": {
+              "configID": "a18d5c",
+              "services": []
+            }
+          }
+        },
+        "time": "2022-6-23 21:45",
+        "dirty": false
       }
     }
+  },
+  "common": {
+    "outputName": "web-mobile",
+    "mainBundleCompressionType": "merge_dep",
+    "platform": "web-mobile",
+    "startScene": "fe9e2ce2-c9f4-4ede-8f4b-2438c8e369c6"
   }
 }

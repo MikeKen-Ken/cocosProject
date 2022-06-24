@@ -1,6 +1,6 @@
 // Copyright (c) 2017-2020 Xiamen Yaji Software Co., Ltd.
 CCEffect %{
-  techniques:
+  techniques: 
   - passes:
     - vert: sprite-vs:vert
       frag: sprite-fs:frag
@@ -18,7 +18,7 @@ CCEffect %{
       properties:
         alphaThreshold: { value: 0.5 }
         size: { value: [500.0, 500.0], editor: { tooltip: '节点尺寸' } }
-
+        mainTexture: {value: grey, parent: USE_TEXTURE}
 }%
 
 CCProgram sprite-vs %{
@@ -82,7 +82,10 @@ CCProgram sprite-fs %{
     in vec2 uv0;
     #pragma builtin(local)
     layout(set = 2, binding = 10) uniform sampler2D cc_spriteTexture;
+    uniform sampler2D mainTexture;
   #endif
+
+  uniform sampler2D cc_spriteTexture1;
 
   vec4 frag () {
     vec4 o = vec4(1, 1, 1, 1);
@@ -91,7 +94,7 @@ CCProgram sprite-fs %{
       o *= CCSampleWithAlphaSeparated(cc_spriteTexture, uv0);
       float sumWeight = 0.;
       vec2 onePixelSize = vec2(1, 1) / size;
-      // // 卷积
+      // 卷积
       for(float r = -RADIUS; r <= RADIUS; r++) {
           for(float c = -RADIUS; c <= RADIUS; c++) {
               vec2 targetUv = uv0 + vec2(r * onePixelSize.x, c * onePixelSize.y);
